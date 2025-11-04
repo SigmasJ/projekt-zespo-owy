@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mini Chat Demo</title>
+  <link rel="stylesheet" href="style1.css" />
+</head>
+<body>
+  <div id="chat">
+    <h2>💬 Mini Chat</h2>
+
+    <div id="messages"></div>
+
+    <input id="username" type="text" placeholder="Twoje imię" />
+    <input id="message" type="text" placeholder="Napisz wiadomość..." />
+    <button id="send">Wyślij</button>
+  </div>
+
+  <script>
+    const apiUrl = "http://10.103.8.116/projekt-zespo-owy/tester/api1/messages1.php";
+    let lastId = 0;
+
+    async function fetchMessages() {
+      const res = await fetch(`${apiUrl}?last_id=${lastId}`);
+      const msgs = await res.json();
+      if (msgs.length > 0) {
+        msgs.forEach(m => {
+          const div = document.createElement('div');
+          div.className = "msg";
+          div.textContent = `[${m.username}] ${m.text}`;
+          document.getElementById('messages').appendChild(div);
+          lastId = m.id;
+        });
+        document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+      }
+    }
+
+    async function sendMessage() {
+      const username = document.getElementById('username').value.trim() || "Anon";
+      const text = document.getElementById('message').value.trim();
+      if (!text) return;
+      await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, text })
+      });
+      document.getElementById('message').value = "";
+    }
+
+    document.getElementById('send').addEventListener('click', sendMessage);
+    document.getElementById('message').addEventListener('keypress', e => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    setInterval(fetchMessages, 2000);
+  </script>
+</body>
+</html>
