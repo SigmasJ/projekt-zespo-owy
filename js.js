@@ -146,3 +146,84 @@ function showSaveMessage() {
 if (getToken()) {
   loadBoard();
 }
+
+
+// --- KONFIGURACJA CHATU ---
+const chatBox = document.querySelector(".chat > div"); // div z wiadomościami
+const chatInput = document.querySelector(".chat input");
+const chatBtn = document.querySelector(".chat button");
+let lastMessageId = 0;
+
+// --- POBIERANIE TOKENU ---
+function getToken() {
+  return localStorage.getItem("jwt");
+}
+
+// --- FUNKCJA POBIERANIA WIADOMOŚCI ---
+async function loadMessages() {
+  const token = getToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch(`${API_URL}/messages?last_id=${lastMessageId}`, {
+      headers: { Authorization: "Bearer " + token },
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      console.error("❌ Błąd pobierania wiadomości:", data);
+      return;
+    }
+
+    data.forEach(msg => {
+      const div = document.createElement("div");
+      div.innerHTML = `<strong>${msg.name}:</strong> ${msg.text}`;
+      chatBox.appendChild(div);
+      lastMessageId = msg.id;
+      chatBox.scrollTop = chatBox.scrollHeight;
+    });
+  } catch (err) {
+    console.error("Błąd fetch chat:", err);
+  }
+}
+
+// --- FUNKCJA WYSYŁANIA WIADOMOŚCI ---
+async function sendMessage() {
+  const token = getToken();
+  if (!token) return;
+  const text = chatInput.value.trim();
+  if (!text) return;
+
+  try {
+    const res = await fetch(`${API_URL}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token,
+      },
+      body: JSON.stringify({ text }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      console.error("❌ Błąd wysyłania wiadomości:", data);
+      return;
+    }
+
+    chatInput.value = "";
+    await loadMessages(); // odśwież chat natychmiast po wysłaniu
+  } catch (err) {
+    console.error("Błąd fetch wysyłania:", err);
+  }
+}
+
+// --- OBSŁUGA PRZYCISKU ---
+chatBtn.addEventListener("click", sendMessage);
+chatInput.addEventListener("keypress", e => {
+  if (e.key === "Enter") sendMessage();
+});
+
+// --- AUTO ODŚWIEŻANIE CHATU co 2 sekundy ---
+setInterval(loadMessages, 2000);
+
+// --- POCZĄTKOWE ZAŁADOWANIE CHATU ---
+if (getToken()) loadMessages();
