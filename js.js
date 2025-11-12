@@ -1,119 +1,148 @@
-const API_URL = "http://10.103.8.115/projekt-zespo-owy/api.php"; // Twój endpoint API
-const form = document.getElementById('loginForm');
-const status = document.getElementById('status');
+// --- KONFIGURACJA ---
+const API_URL = "http://10.103.8.115/projekt-zespo-owy/api.php";
 
-form.addEventListener('submit', async (e) => {
+// --- ELEMENTY FORMULARZA ---
+const form = document.querySelector("form");
+const status = document.createElement("p");
+form.appendChild(status);
+
+// --- LOGOWANIE ---
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
+  status.textContent = "Logowanie...";
 
-  const username = document.getElementById('username').value;
-  const password = document.getElementById('password').value;
+  const username = document.getElementById("login").value.trim();
+  const password = document.getElementById("haslo").value.trim();
 
   try {
-    const res = await fetch('auth.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: username, password })
+    const res = await fetch(`${API_URL}/auth`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: username, password }),
     });
 
     const data = await res.json();
 
     if (!res.ok) {
-      status.innerText = data.error || 'Nie udało się zalogować';
+      status.textContent = data.error || "Nie udało się zalogować";
+      console.error("Błąd logowania:", data);
       return;
     }
 
-    localStorage.setItem('jwt', data.token); // zapis tokenu w localStorage
-    status.innerText = 'Zalogowano pomyślnie!';
-  } catch (err) {
-    console.error(err);
-    status.innerText = 'Błąd połączenia';
-  }
-});
-
-// Funkcja do pobrania danych użytkownika z tokenu (frontend)
-function parseJWT(token) {
-  try {
-    const payload = token.split('.')[1];
-    return JSON.parse(atob(payload));
-  } catch {
-    return null;
-  }
-}
-
-// Przykład użycia
-const savedToken = localStorage.getItem('jwt');
-if (savedToken) {
-  const userData = parseJWT(savedToken);
-  if (userData) {
-    console.log('Zalogowany użytkownik:', userData);
-  }
-}
-
-const textarea = document.querySelector('.tablica-textarea');
-const token = localStorage.getItem('jwt'); // token z logowania
-
-// 🟦 Funkcja do pobrania treści tablicy
-async function loadBoard() {
-  try {
-    const res = await fetch('/api/board', {
-      headers: {
-        'Authorization': 'Bearer ' + token
-      }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      textarea.value = data.content || '';
-    } else {
-      console.error('Nie udało się pobrać tablicy');
+    if (!data.token) {
+      status.textContent = "Brak tokenu w odpowiedzi serwera";
+      return;
     }
-  } catch (err) {
-    console.error('Błąd połączenia:', err);
-  }
-}
 
-// 🟩 Autozapis po przerwaniu pisania
-let saveTimeout;
-textarea?.addEventListener('input', () => {
-  clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(saveBoard, 1000); // zapis po 1s bezczynności
+    localStorage.setItem("jwt", data.token);
+    status.textContent = "✅ Zalogowano pomyślnie!";
+    console.log("Token JWT zapisany:", data.token);
+
+    // automatyczne załadowanie tablicy
+    await loadBoard();
+  } catch (err) {
+    console.error("Błąd połączenia:", err);
+    status.textContent = "❌ Błąd połączenia z serwerem";
+  }
 });
 
-// 🟨 Funkcja zapisująca tablicę
-async function saveBoard() {
+// --- OBSŁUGA TABLICY ---
+const textarea = document.querySelector(".tablica-textarea");
+
+function getToken() {
+  return localStorage.getItem("jwt");
+}
+
+// Pobierz treść tablicy
+async function loadBoard() {
+  if (!textarea) return;
+  const token = getToken();
+  if (!token) {
+    console.warn("Brak tokenu — najpierw zaloguj się");
+    return;
+  }
+
   try {
-    const res = await fetch('/api/board', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token
-      },
-      body: JSON.stringify({ content: textarea.value })
+    const res = await fetch(`${API_URL}/board`, {
+      headers: { Authorization: "Bearer " + token },
     });
 
     const data = await res.json();
-    if (res.ok) {
-      console.log('✅ Tablica zapisana');
-      showSaveMessage();
-    } else {
-      console.warn('❌ Błąd zapisu:', data.error);
+
+    if (!res.ok) {
+      console.error("❌ Nie udało się pobrać tablicy:", data);
+      return;
     }
+
+    textarea.value = data.content || "";
+    console.log("✅ Tablica załadowana");
   } catch (err) {
-    console.error('Błąd zapisu:', err);
+    console.error("Błąd pobierania tablicy:", err);
   }
 }
 
-// 🟦 Mały wichajster — komunikat „Zapisano ✅”
+// Zapisz tablicę po 1s bezczynności
+let saveTimeout;
+textarea?.addEventListener("input", () => {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(saveBoard, 1000);
+});
+
+async function saveBoard() {
+  if (!textarea) return;
+  const token = getToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch(`${API_URL}/board`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token,
+      },
+      body: JSON.stringify({ content: textarea.value }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.warn("❌ Błąd zapisu:", data);
+      return;
+    }
+
+    console.log("✅ Tablica zapisana");
+    showSaveMessage();
+  } catch (err) {
+    console.error("Błąd zapisu:", err);
+  }
+}
+
+// Komunikat „Zapisano ✅”
 function showSaveMessage() {
-  let msg = document.querySelector('.save-toast');
+  let msg = document.querySelector(".save-toast");
   if (!msg) {
-    msg = document.createElement('div');
-    msg.className = 'save-toast';
-    msg.textContent = 'Zapisano ✅';
+    msg = document.createElement("div");
+    msg.className = "save-toast";
+    msg.textContent = "Zapisano ✅";
+    Object.assign(msg.style, {
+      position: "fixed",
+      bottom: "20px",
+      right: "20px",
+      background: "#4caf50",
+      color: "white",
+      padding: "10px 20px",
+      borderRadius: "12px",
+      opacity: "0",
+      transition: "opacity 0.3s",
+      zIndex: "1000",
+    });
     document.body.appendChild(msg);
   }
-  msg.style.opacity = '1';
-  setTimeout(() => (msg.style.opacity = '0'), 1500);
+  msg.style.opacity = "1";
+  setTimeout(() => (msg.style.opacity = "0"), 1500);
 }
 
-// Start: załaduj zawartość tablicy
-loadBoard();
+// Jeśli już zalogowany — pobierz tablicę
+if (getToken()) {
+  loadBoard();
+}
