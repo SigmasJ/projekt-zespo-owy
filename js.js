@@ -8,102 +8,95 @@ form.appendChild(status);
 
 // --- LOGOWANIE ---
 form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  status.textContent = "Logowanie...";
+e.preventDefault();
+status.textContent = "Logowanie...";
 
-  const username = document.getElementById("login").value.trim();
-  const password = document.getElementById("haslo").value.trim();
+const username = document.getElementById("login").value.trim();
+const password = document.getElementById("haslo").value.trim();
 
-  try {
-    const res = await fetch(`${API_URL}/auth`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: username, password }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      status.textContent = data.error || "Nie udało się zalogować";
-      console.error("Błąd logowania:", data);
-      return;
-    }
-
-    if (!data.token) {
-      status.textContent = "Brak tokenu w odpowiedzi serwera";
-      return;
-    }
-
-    localStorage.setItem("jwt", data.token);
-    status.textContent = "✅ Zalogowano pomyślnie!";
-    console.log("Token JWT zapisany:", data.token);
-
-    // automatyczne załadowanie tablicy
-    await loadBoard();
-    // załaduj chat
-    loadMessages();
-  } catch (err) {
-    console.error("Błąd połączenia:", err);
-    status.textContent = "❌ Błąd połączenia z serwerem";
-  }
+try {
+const res = await fetch(`${API_URL}/auth`, {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({ name: username, password }),
 });
 
-// --- POBIERANIE TOKENU ---
-function getToken() {
-  return localStorage.getItem("jwt");
+const data = await res.json();
+
+if (!res.ok) {
+status.textContent = data.error || "Nie udało się zalogować";
+console.error("Błąd logowania:", data);
+return;
 }
+
+if (!data.token) {
+status.textContent = "Brak tokenu w odpowiedzi serwera";
+return;
+}
+
+localStorage.setItem("jwt", data.token);
+status.textContent = "✅ Zalogowano pomyślnie!";
+console.log("Token JWT zapisany:", data.token);
+
+// automatyczne załadowanie tablicy
+await loadBoard();
+} catch (err) {
+console.error("Błąd połączenia:", err);
+status.textContent = "❌ Błąd połączenia z serwerem";
+}
+});
 
 // --- OBSŁUGA TABLICY ---
 const textarea = document.querySelector(".tablica-textarea");
 
-async function loadBoard() {
-  if (!textarea) return;
-  const token = getToken();
-  if (!token) {
-    textarea.setAttribute("readonly", true);
-    textarea.placeholder = "Zaloguj się, aby edytować tablicę";
-    return;
-  }
-
-  try {
-    const res = await fetch(`${API_URL}/board`, {
-      headers: { Authorization: "Bearer " + token },
-    });
-
-    const data = await res.json();
-    textarea.value = data.content || "";
-
-    // Sprawdź rolę użytkownika z tokenu
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    if (payload.role !== 'nauczyciel') {
-      textarea.setAttribute("readonly", true);
-      textarea.style.backgroundColor = "#f0f0f0"; // szare tło dla nieaktywnej
-    } else {
-      textarea.removeAttribute("readonly");
-      textarea.style.backgroundColor = "white";
-    }
-  } catch (err) {
-    console.error("Błąd pobierania tablicy:", err);
-    textarea.setAttribute("readonly", true);
-  }
+function getToken() {
+return localStorage.getItem("jwt");
 }
 
+// Pobierz treść tablicy
+async function loadBoard() {
+if (!textarea) return;
+const token = getToken();
+if (!token) {
+console.warn("Brak tokenu — najpierw zaloguj się");
+return;
+}
+
+try {
+const res = await fetch(`${API_URL}/board`, {
+headers: { Authorization: "Bearer " + token },
+});
+
+const data = await res.json();
+
+if (!res.ok) {
+console.error("❌ Nie udało się pobrać tablicy:", data);
+return;
+}
+
+textarea.value = data.content || "";
+console.log("✅ Tablica załadowana");
+} catch (err) {
+console.error("Błąd pobierania tablicy:", err);
+}
+}
+
+// Zapisz tablicę po 1s bezczynności
 let saveTimeout;
 textarea?.addEventListener("input", () => {
-  const token = getToken();
-  if (!token) return;
-
-  const payload = JSON.parse(atob(token.split('.')[1]));
-  if (payload.role !== 'nauczyciel') return; // blokada dla uczniów
-
-  clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(saveBoard, 1000);
+clearTimeout(saveTimeout);
+saveTimeout = setTimeout(saveBoard, 1000);
 });
 
 async function saveBoard() {
   if (!textarea) return;
+
   const token = getToken();
-  if (!token) return;
+  if (!token) {
+    console.warn("❌ Nie jesteś zalogowany — nie można zapisać tablicy");
+    showSaveMessage("❌ Zaloguj się, aby zapisać");
+    return;
+  }
 
   try {
     const res = await fetch(`${API_URL}/board`, {
@@ -119,22 +112,24 @@ async function saveBoard() {
 
     if (!res.ok) {
       console.warn("❌ Błąd zapisu:", data);
+      showSaveMessage("❌ Nie udało się zapisać");
       return;
     }
 
     console.log("✅ Tablica zapisana");
-    showSaveMessage();
+    showSaveMessage(); // standardowy komunikat "Zapisano ✅"
   } catch (err) {
     console.error("Błąd zapisu:", err);
+    showSaveMessage("❌ Błąd połączenia");
   }
 }
 
-function showSaveMessage() {
+// modyfikacja showSaveMessage żeby można było przekazać własny komunikat
+function showSaveMessage(msgText = "Zapisano ✅") {
   let msg = document.querySelector(".save-toast");
   if (!msg) {
     msg = document.createElement("div");
     msg.className = "save-toast";
-    msg.textContent = "Zapisano ✅";
     Object.assign(msg.style, {
       position: "fixed",
       bottom: "20px",
@@ -149,16 +144,30 @@ function showSaveMessage() {
     });
     document.body.appendChild(msg);
   }
+  msg.textContent = msgText;
   msg.style.opacity = "1";
   setTimeout(() => (msg.style.opacity = "0"), 1500);
 }
 
-// --- CHAT ---
-const chatBox = document.querySelector(".chat > div"); // div z wiadomości
+
+// Jeśli już zalogowany — pobierz tablicę
+if (getToken()) {
+loadBoard();
+}
+
+
+// --- KONFIGURACJA CHATU ---
+const chatBox = document.querySelector(".chat > div"); // div z wiadomościami
 const chatInput = document.querySelector(".chat input");
 const chatBtn = document.querySelector(".chat button");
 let lastMessageId = 0;
 
+// --- POBIERANIE TOKENU ---
+function getToken() {
+  return localStorage.getItem("jwt");
+}
+
+// --- FUNKCJA POBIERANIA WIADOMOŚCI ---
 async function loadMessages() {
   const token = getToken();
   if (!token) return;
@@ -185,6 +194,7 @@ async function loadMessages() {
   }
 }
 
+// --- FUNKCJA WYSYŁANIA WIADOMOŚCI ---
 async function sendMessage() {
   const token = getToken();
   if (!token) return;
@@ -214,7 +224,7 @@ async function sendMessage() {
   }
 }
 
-// --- OBSŁUGA PRZYCISKU I ENTER ---
+// --- OBSŁUGA PRZYCISKU ---
 chatBtn.addEventListener("click", sendMessage);
 chatInput.addEventListener("keypress", e => {
   if (e.key === "Enter") sendMessage();
@@ -223,8 +233,5 @@ chatInput.addEventListener("keypress", e => {
 // --- AUTO ODŚWIEŻANIE CHATU co 2 sekundy ---
 setInterval(loadMessages, 2000);
 
-// --- POCZĄTKOWE ZAŁADOWANIE ---
-if (getToken()) {
-  loadBoard();
-  loadMessages();
-}
+// --- POCZĄTKOWE ZAŁADOWANIE CHATU ---
+if (getToken()) loadMessages();
