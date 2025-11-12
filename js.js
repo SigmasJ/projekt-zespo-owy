@@ -40,25 +40,28 @@ form.addEventListener("submit", async (e) => {
 
     // automatyczne załadowanie tablicy
     await loadBoard();
+    // załaduj chat
+    loadMessages();
   } catch (err) {
     console.error("Błąd połączenia:", err);
     status.textContent = "❌ Błąd połączenia z serwerem";
   }
 });
 
-// --- OBSŁUGA TABLICY ---
-const textarea = document.querySelector(".tablica-textarea");
-
+// --- POBIERANIE TOKENU ---
 function getToken() {
   return localStorage.getItem("jwt");
 }
 
-// Pobierz treść tablicy
+// --- OBSŁUGA TABLICY ---
+const textarea = document.querySelector(".tablica-textarea");
+
 async function loadBoard() {
   if (!textarea) return;
   const token = getToken();
   if (!token) {
-    console.warn("Brak tokenu — najpierw zaloguj się");
+    textarea.setAttribute("readonly", true);
+    textarea.placeholder = "Zaloguj się, aby edytować tablicę";
     return;
   }
 
@@ -68,22 +71,31 @@ async function loadBoard() {
     });
 
     const data = await res.json();
-
-    if (!res.ok) {
-      console.error("❌ Nie udało się pobrać tablicy:", data);
-      return;
-    }
-
     textarea.value = data.content || "";
-    console.log("✅ Tablica załadowana");
+
+    // Sprawdź rolę użytkownika z tokenu
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    if (payload.role !== 'nauczyciel') {
+      textarea.setAttribute("readonly", true);
+      textarea.style.backgroundColor = "#f0f0f0"; // szare tło dla nieaktywnej
+    } else {
+      textarea.removeAttribute("readonly");
+      textarea.style.backgroundColor = "white";
+    }
   } catch (err) {
     console.error("Błąd pobierania tablicy:", err);
+    textarea.setAttribute("readonly", true);
   }
 }
 
-// Zapisz tablicę po 1s bezczynności
 let saveTimeout;
 textarea?.addEventListener("input", () => {
+  const token = getToken();
+  if (!token) return;
+
+  const payload = JSON.parse(atob(token.split('.')[1]));
+  if (payload.role !== 'nauczyciel') return; // blokada dla uczniów
+
   clearTimeout(saveTimeout);
   saveTimeout = setTimeout(saveBoard, 1000);
 });
@@ -117,7 +129,6 @@ async function saveBoard() {
   }
 }
 
-// Komunikat „Zapisano ✅”
 function showSaveMessage() {
   let msg = document.querySelector(".save-toast");
   if (!msg) {
@@ -142,24 +153,12 @@ function showSaveMessage() {
   setTimeout(() => (msg.style.opacity = "0"), 1500);
 }
 
-// Jeśli już zalogowany — pobierz tablicę
-if (getToken()) {
-  loadBoard();
-}
-
-
-// --- KONFIGURACJA CHATU ---
-const chatBox = document.querySelector(".chat > div"); // div z wiadomościami
+// --- CHAT ---
+const chatBox = document.querySelector(".chat > div"); // div z wiadomości
 const chatInput = document.querySelector(".chat input");
 const chatBtn = document.querySelector(".chat button");
 let lastMessageId = 0;
 
-// --- POBIERANIE TOKENU ---
-function getToken() {
-  return localStorage.getItem("jwt");
-}
-
-// --- FUNKCJA POBIERANIA WIADOMOŚCI ---
 async function loadMessages() {
   const token = getToken();
   if (!token) return;
@@ -186,7 +185,6 @@ async function loadMessages() {
   }
 }
 
-// --- FUNKCJA WYSYŁANIA WIADOMOŚCI ---
 async function sendMessage() {
   const token = getToken();
   if (!token) return;
@@ -216,7 +214,7 @@ async function sendMessage() {
   }
 }
 
-// --- OBSŁUGA PRZYCISKU ---
+// --- OBSŁUGA PRZYCISKU I ENTER ---
 chatBtn.addEventListener("click", sendMessage);
 chatInput.addEventListener("keypress", e => {
   if (e.key === "Enter") sendMessage();
@@ -225,5 +223,8 @@ chatInput.addEventListener("keypress", e => {
 // --- AUTO ODŚWIEŻANIE CHATU co 2 sekundy ---
 setInterval(loadMessages, 2000);
 
-// --- POCZĄTKOWE ZAŁADOWANIE CHATU ---
-if (getToken()) loadMessages();
+// --- POCZĄTKOWE ZAŁADOWANIE ---
+if (getToken()) {
+  loadBoard();
+  loadMessages();
+}
