@@ -329,4 +329,30 @@ if (getToken()) {
   loadBoard();
   loadNote();
   loadMessages();
+}   
+const activeList = document.getElementById("activeList");
+
+async function loadActiveUsers() {
+    if (!getToken()) return;
+
+    try {
+        const res = await fetch(`${API_URL}/active`, {
+            headers: { Authorization: "Bearer " + getToken() }
+        });
+
+        const users = await res.json();
+        if (!Array.isArray(users)) return;
+
+        activeList.innerHTML = "";
+        users.forEach(u => {
+            const div = document.createElement("div");
+            div.textContent = `${u.name} (${u.role})`;
+            activeList.appendChild(div);
+        });
+
+    } catch (err) {
+        console.error("Błąd loadActiveUsers:", err);
+    }
 }
+setInterval(loadActiveUsers, 5000);
+loadActiveUsers();
