@@ -12,6 +12,7 @@ function handleActive($pdo, $method, $id, $user) {
     ");
     $stmt->execute([$userId]);
 
+    
     // GET -> zwróć listę aktywnych
     if ($method === "GET") {
 
