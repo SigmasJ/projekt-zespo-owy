@@ -75,6 +75,37 @@ form?.addEventListener("submit", async (e) => {
   }
 });
 
+const logoutBtn = document.getElementById("logoutBtn");
+
+logoutBtn?.addEventListener("click", () => {
+  // 1. Usuń token
+  localStorage.removeItem("jwt");
+
+  // 2. Zresetuj rolę
+  USER_ROLE = null;
+
+  // 3. Ukryj i zablokuj elementy
+  const tablicaBox = document.querySelector(".tablica");
+  const notatkaBox = document.querySelector(".notatka");
+  const chatBoxContainer = document.querySelector(".chat");
+
+  tablicaBox.style.display = "none";
+  notatkaBox.style.display = "none";
+  chatBoxContainer.style.display = "none";
+
+  textarea.value = "";
+  noteArea.value = "";
+  chatBox.innerHTML = "";
+
+  textarea.disabled = true;
+  noteArea.disabled = true;
+  chatInput.disabled = true;
+  chatBtn.disabled = true;
+
+  // 4. Komunikat
+  showSaveMessage("Wylogowano ✔️");
+});
+
 // ==========================
 //        TABLICA
 // ==========================
