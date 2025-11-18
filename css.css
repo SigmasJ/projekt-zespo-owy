@@ -11,10 +11,16 @@ body {
     margin-bottom: 20px;
   }
 
+  .col-lg-8 {
+    height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
+}
+
   .tablica {
     display: flex;
     flex-direction: column;
-    min-height: 680px;
+    min-height: 100%;
   }
 
   .notatka {
@@ -40,6 +46,8 @@ body {
   }
   .tablica-textarea {
     flex-grow: 1;
+    height: 100%;
+    min-height: 0;
     width: 100%;
     border: none;
     outline: none;
@@ -66,4 +74,6 @@ body {
     opacity: 0;
     z-index: 9999;
   }
+
+  
   
