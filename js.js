@@ -41,9 +41,7 @@ form?.appendChild(status);
 //       LOGOWANIE
 // ==========================
 form?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  status.textContent = "Logowanie...";
-
+  
   const username = document.getElementById("login").value.trim();
   const password = document.getElementById("haslo").value.trim();
 
@@ -56,15 +54,10 @@ form?.addEventListener("submit", async (e) => {
 
     const data = await res.json();
 
-    if (!res.ok || !data.token) {
-      status.textContent = "❌ Błędny login lub hasło";
-      return;
-    }
-
     localStorage.setItem("jwt", data.token);
     updateRole();
 
-    status.textContent = "✅ Zalogowano pomyślnie!";
+
 
     applyPermissions();
     loadBoard();
