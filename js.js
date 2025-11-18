@@ -235,3 +235,85 @@ setInterval(loadMessages, 2000);
 
 // --- POCZĄTKOWE ZAŁADOWANIE CHATU ---
 if (getToken()) loadMessages();
+
+// ==========================
+//        NOTATKA
+// ==========================
+const noteArea = document.querySelector(".notatka-textarea");
+let noteSaveTimeout;
+
+// Pobierz token
+function getToken() {
+  return localStorage.getItem("jwt");
+}
+
+// ---- POBIERZ NOTATKĘ ----
+async function loadNote() {
+  const token = getToken();
+  if (!token) {
+    console.warn("Brak tokenu — najpierw zaloguj się");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/notes`, {
+      headers: { Authorization: "Bearer " + token }
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      console.error("❌ Błąd pobierania notatki:", data);
+      return;
+    }
+
+    noteArea.value = data.content || "";
+    console.log("📒 Notatka załadowana");
+  } catch (err) {
+    console.error("Błąd loadNote:", err);
+  }
+}
+
+// ---- ZAPIS NOTATKI ----
+async function saveNote() {
+  const token = getToken();
+  if (!token) {
+    console.warn("Brak tokenu — nie można zapisać notatki");
+    showSaveMessage("❌ Zaloguj się, aby zapisać");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/notes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token,
+      },
+      body: JSON.stringify({ content: noteArea.value }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      console.error("❌ Błąd zapisu notatki:", data);
+      showSaveMessage("❌ Nie udało się zapisać");
+      return;
+    }
+
+    console.log("📒 Notatka zapisana");
+    showSaveMessage(); // "Zapisano ✓"
+  } catch (err) {
+    console.error("Błąd saveNote:", err);
+    showSaveMessage("❌ Błąd połączenia");
+  }
+}
+
+// ---- AUTOSAVE po 1 sek ----
+noteArea?.addEventListener("input", () => {
+  clearTimeout(noteSaveTimeout);
+  noteSaveTimeout = setTimeout(saveNote, 1000);
+});
+
+// ---- AUTOMATYCZNE ŁADOWANIE NOTATKI PO ZALOGOWANIU ----
+if (getToken()) {
+  loadNote();
+}
