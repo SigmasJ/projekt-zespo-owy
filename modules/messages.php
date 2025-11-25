@@ -21,9 +21,20 @@ function handleMessages($pdo, $method, $id = null, $user = null) {
             echo json_encode(['error' => 'Missing message text']);
             return;
         }
-
+    
+        // --- ROTACJA 40 rekordów ---
+        $stmtCount = $pdo->query("SELECT COUNT(*) FROM messages");
+        $count = (int)$stmtCount->fetchColumn();
+    
+        if ($count >= 40) {
+            // usuwa najstarszą wiadomość
+            $pdo->exec("DELETE FROM messages ORDER BY id ASC LIMIT 1");
+        }
+    
+        // --- dodanie nowej wiadomości ---
         $stmt = $pdo->prepare("INSERT INTO messages (user_id, text) VALUES (?, ?)");
         $stmt->execute([$user['id'], $data['text']]);
+    
         echo json_encode(['ok' => true]);
         return;
     }
