@@ -1,2 +1,2 @@
 wyglad strony (skalowanie textarea, wyrównanie wszystkich bloków)
-
+rejestracja
