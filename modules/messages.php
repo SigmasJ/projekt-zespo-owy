@@ -31,10 +31,14 @@ function handleMessages($pdo, $method, $id = null, $user = null) {
             $pdo->exec("DELETE FROM messages ORDER BY id ASC LIMIT 1");
         }
     
-        // --- dodanie nowej wiadomości ---
-        $stmt = $pdo->prepare("INSERT INTO messages (user_id, text) VALUES (?, ?)");
-        $stmt->execute([$user['id'], $data['text']]);
-    
+       // pobierz największą pozycję z tabeli
+$stmt = $pdo->query("SELECT COALESCE(MAX(position), 0) FROM messages");
+$maxPos = $stmt->fetchColumn();
+
+// dodaj nową wiadomość z kolejną pozycją
+$stmt = $pdo->prepare("INSERT INTO messages (user_id, text, position) VALUES (?, ?, ?)");
+$stmt->execute([$user['id'], $data['text'], $maxPos + 1]);
+
         echo json_encode(['ok' => true]);
         return;
     }
