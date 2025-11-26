@@ -1,2 +1,1 @@
-wyglad strony (skalowanie textarea, wyrównanie wszystkich bloków)
-rejestracja
+odswiezanie czatu bo jest usuwanie ale usuwa sie dopiero po refreshu strony
